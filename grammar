@@ -1,0 +1,49 @@
+program := PROGRAM LBRACE functions RBRACE
+
+functions := function | function functions
+
+block := LBRACE exprs RBRACE
+
+exprs := int_expr SEMI| int_expr SEMI exprs
+var_expr := VID
+decl_expr := VAR VID ASSIGN NUM
+call_expr := FID LPAREN int_expr RPAREN
+int_expr := var_expr | call_expr | arith_expr | decl_exr | if_expr
+arith_expr := NUM | int_expr int_expr PLUS | int_expr int_expr MINUS
+           | int_expr int_expr TIMES | int_expr int_expr DIV | int_expr int_expr EXP
+           | int_expr int_expr GT | int_expr int_expr LT | int_expr int_expr EQ | int_expr int_expr NEQ
+if_expr := IF LPAREN arith_expr RPAREN block ELSE block
+
+
+function := FUNCTION FID [args] block
+
+args := VID | VID args
+
+NUM  := "1+"
+VID := "i[iI1l]*"
+FID := "I[iI1l]*"
+PROGRAM := "li1I"
+LBRACE := "l1iI"
+RBRACE := "l1Ii"
+VAR := "liI1"
+ASSIGN := "lIi1"
+LPAREN := "li1l"
+RPAREN := "lil1"
+FUNCTION := "lI1i"
+SEMI := "l1ii"
+
+PLUS := "llli"
+MINUS := "llii"
+TIMES := "liil"
+DIV := "llil"
+EXP := "liii"
+
+GT := "ll1i"
+LT := "ll1I"
+EQ := "ll11"
+NEQ := "l111"
+
+IF := "l1i1"
+ELSE := "l1il"
+
+MAIN := "IIII"
