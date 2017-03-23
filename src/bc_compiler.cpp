@@ -1,17 +1,17 @@
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/PluginLoader.h"
@@ -20,7 +20,6 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include <memory>
 
@@ -72,17 +71,17 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
     tool_output_file *out_fd;
     if(opts->hasArg(options::OPT_c))
     {
-        std::string error;
-        sys::fs::OpenFlags open_flags = sys::fs::F_None;
+        std::error_code error;
+        sys::fs::OpenFlags open_flags = sys::fs::F_Text;
         if (binary)
-            open_flags |= sys::fs::F_Binary;
+            open_flags |= sys::fs::F_None;
         std::string output_file = program_name + '.' + suffix;
         output_file = opts->getLastArgValue(options::OPT_o, output_file);
         out_fd = new tool_output_file(output_file.c_str(), error,
                                       open_flags);
         output_path = std::move(output_file);
         
-        if (!error.empty()) 
+        if (error) 
         {
             throw BCCompileError ("Failed to open out fd");
         }
@@ -102,8 +101,6 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
 
 std::string BCCompiler::compile(Module *module)
 {
-
-    LLVMContext &context = getGlobalContext();
 
     std::string target_triple (module->getTargetTriple());
     Triple triple (target_triple);
@@ -127,20 +124,16 @@ std::string BCCompiler::compile(Module *module)
     }
 
     TargetOptions options;
-    OwningPtr<TargetMachine>
+    std::unique_ptr<TargetMachine>
         target_machine(target->createTargetMachine(triple.getTriple(),
                                                   MCPU, FeaturesStr, options,
-                                                  RelocModel, CMModel, m_opt_level));
+                                                  NoneType{}, CodeModel::Default, m_opt_level));
     assert(target_machine.get() && "Could not allocate target machine!");
 
-    // Disable .loc support for older OS X versions.
-    if (triple.isMacOSX() &&
-        triple.isMacOSXVersionLT(10, 6))
-        target_machine->setMCUseLoc(false);
 
     // Figure out where we are going to send the output.
     std::string output_path;
-    OwningPtr<tool_output_file> out
+    std::unique_ptr<tool_output_file> out
         (getOutputStream(target->getName(), triple.getOS(), module->getModuleIdentifier(), output_path));
     if (!out)
     {
@@ -148,32 +141,11 @@ std::string BCCompiler::compile(Module *module)
     }
 
     // Build up all of the passes that we want to do to the module.
-    PassManager pm;
+    legacy::PassManager pm;
 
-    // Add an appropriate TargetLibraryInfo pass for the module's triple.
-    TargetLibraryInfo *tli = new TargetLibraryInfo(triple);
-    pm.add(tli);
-
-    // Add intenal analysis passes from the target machine.
-    target_machine->addAnalysisPasses(pm);
-
-    // Add the target data from the target machine, if it exists, or the module.
-    if (const DataLayout *td = target_machine->getDataLayout())
     {
-        pm.add(new DataLayout(*td));
-    }
-    else
-    {
-        pm.add(new DataLayout(module));
-    }
-
-    // Override default to generate verbose assembly.
-    target_machine->setAsmVerbosityDefault(true);
-    {
-        formatted_raw_ostream fos(out->os());
-
         // Ask the target to add backend passes as necessary.
-        if (target_machine->addPassesToEmitFile(pm, fos, m_file_type))
+        if (target_machine->addPassesToEmitFile(pm, out->os(), m_file_type))
         {
             throw BCCompileError("Target does not support generation of this file type");
         }

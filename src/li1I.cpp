@@ -6,7 +6,8 @@
 #include <iterator>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
-#include <llvm/ExecutionEngine/JIT.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/Support/Path.h>
 #include <llvm/Support/TargetSelect.h>
 #include "llvm/Support/TargetRegistry.h"
 #include <llvm/ADT/Triple.h>
@@ -32,26 +33,13 @@ using namespace li1I;
 
 int main(int argc, char **argv)
 {
-    //InitializeAllTargets();
-    //InitializeAllTargetMCs();
-    //InitializeAllAsmPrinters();
-    //InitializeAllAsmParsers();
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-
-    // Initialize codegen and IR passes used by llc so that the -print-after,
-    // -print-before, and -stop-after options work.
-    llvm::PassRegistry *Registry = llvm::PassRegistry::getPassRegistry();
-    llvm::initializeCore(*Registry);
-    llvm::initializeCodeGen(*Registry);
-    llvm::initializeLoopStrengthReducePass(*Registry);
-    llvm::initializeLowerIntrinsicsPass(*Registry);
-    llvm::initializeUnreachableBlockElimPass(*Registry);
+    llvm::InitializeNativeTargetAsmParser();    
 
     llvm::llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
-    llvm::sys::PrintStackTraceOnErrorSignal();
+    llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
 
     // Enable debug stream buffering.
     llvm::EnableDebugBuffering = true;
@@ -63,8 +51,7 @@ int main(int argc, char **argv)
     unsigned missing_arg_count;
 
     llvm::ArrayRef<char*> argv_ref(argv, argc);
- opts = opt_table.ParseArgs(std::begin(argv_ref), std::end(argv_ref), 
-                                                        missing_arg_index, missing_arg_count);
+    opts = new llvm::opt::InputArgList{opt_table.ParseArgs(argv_ref, missing_arg_index, missing_arg_count)};
     opts->ClaimAllArgs();
     std::string in_filename = opts->getLastArgValue(options::OPT_INPUT);
     std::ifstream program(in_filename);
@@ -84,7 +71,7 @@ int main(int argc, char **argv)
         }
 
         ASTToIRVisitor codegenner;
-        llvm::Module *module = codegenner.codegenIR(*ast);
+        std::unique_ptr<llvm::Module> module {codegenner.codegenIR(*ast)};
         delete ast;
     
         if (opts->hasArg(options::OPT_emit_llvm))
@@ -95,16 +82,17 @@ int main(int argc, char **argv)
         if (opts->hasArg(options::OPT_e))
         {
             llvm::ExecutionEngine *ee;
-            ee = llvm::EngineBuilder(module).create();
             llvm::Function *main_function = module->getFunction(llvm::StringRef("IIII"));
+            ee = llvm::EngineBuilder(std::move(module)).create();
             std::vector<llvm::GenericValue> args;
             llvm::GenericValue result = ee->runFunction(main_function, args);
             std::cout << std::endl << *result.IntVal.getRawData() << std::endl;
+            return 0;
         }
 
         BCCompiler bc_compiler (llvm::CodeGenOpt::Level::None,
                                 llvm::TargetMachine::CodeGenFileType::CGFT_ObjectFile);
-        object_path = bc_compiler.compile(module);
+        object_path = bc_compiler.compile(module.get());
         object_file_is_temp = true;
         }
     else if (llvm::sys::path::extension(in_filename).equals(".o"))

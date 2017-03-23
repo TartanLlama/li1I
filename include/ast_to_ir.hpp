@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 
@@ -26,7 +27,7 @@ IRTransformError (std::string message) : m_message(message) {}
     {
     public:
         ASTToIRVisitor() :
-            m_module(NULL), m_builder(llvm::getGlobalContext()), m_environment()
+            m_module(NULL), m_context(), m_builder(m_context), m_environment()
         {}
         void visit(const Program &node);
         void visit(const Function &node);
@@ -46,6 +47,7 @@ IRTransformError (std::string message) : m_message(message) {}
         void createMain();
 
         llvm::Module *m_module;
+        llvm::LLVMContext m_context;
         llvm::IRBuilder<> m_builder;
         std::map <std::string, llvm::Value*> m_environment;
         llvm::Value *m_value;

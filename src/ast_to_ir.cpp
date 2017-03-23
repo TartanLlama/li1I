@@ -1,6 +1,6 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
-#include <llvm/Analysis/Verifier.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/Host.h>
 #include <sstream>
 #include <stack>
@@ -14,32 +14,31 @@ using llvm::ConstantInt;
 using llvm::IntegerType;
 using llvm::FunctionType;
 using llvm::BasicBlock;
-using llvm::getGlobalContext;
 using llvm::Type;
 
 void ASTToIRVisitor::createMain()
 {
-    FunctionType *ft = FunctionType::get(llvm::Type::getInt32Ty(llvm::getGlobalContext()),
+    FunctionType *ft = FunctionType::get(llvm::Type::getInt32Ty(m_context),
                                                      false);
     llvm::Function *f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "main", m_module);
     
-    BasicBlock *entry = BasicBlock::Create(getGlobalContext(), "entry", f);
+    BasicBlock *entry = BasicBlock::Create(m_context, "entry", f);
     m_builder.SetInsertPoint(entry);
     llvm::Function *callee = m_module->getFunction("IIII");
 
-    llvm::ArrayRef<Type*> args (llvm::Type::getInt8PtrTy(llvm::getGlobalContext()));
-    ft = FunctionType::get(llvm::Type::getInt32Ty(llvm::getGlobalContext()),
+    llvm::ArrayRef<Type*> args (llvm::Type::getInt8PtrTy(m_context));
+    ft = FunctionType::get(llvm::Type::getInt32Ty(m_context),
                            args,
                            true);
     f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "printf", m_module);
-    m_builder.CreateCall2(f, m_builder.CreateGlobalStringPtr("%d\n"), m_builder.CreateCall(callee));
+    m_builder.CreateCall(f, {m_builder.CreateGlobalStringPtr("%d\n"), m_builder.CreateCall(callee)});
     
-    m_builder.CreateRet(ConstantInt::get(IntegerType::get(getGlobalContext(),32), llvm::APInt(32, 0, true)));
+    m_builder.CreateRet(ConstantInt::get(IntegerType::get(m_context,32), llvm::APInt(32, 0, true)));
 }
 
 void ASTToIRVisitor::visit(const Program &node)
 {
-    m_module = new llvm::Module(node.name(), llvm::getGlobalContext());
+    m_module = new llvm::Module(node.name(), m_context);
 
     for (auto &func : node)
     {
@@ -54,8 +53,8 @@ void ASTToIRVisitor::visit(const Function &node)
     m_environment.clear();
 
     std::vector<llvm::Type*> arg_types (node.nArgs(),
-                                        llvm::Type::getInt32Ty(llvm::getGlobalContext()));
-    llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getInt32Ty(llvm::getGlobalContext()),
+                                        llvm::Type::getInt32Ty(m_context));
+    llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getInt32Ty(m_context),
                                          arg_types, false);
 
     llvm::Function *f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, node.name(), m_module);
@@ -70,10 +69,10 @@ void ASTToIRVisitor::visit(const Function &node)
          ++f_arg, ++p_arg)
     {
         f_arg->setName(p_arg->vid());
-        m_environment[p_arg->vid()] = f_arg;
+        m_environment[p_arg->vid()] = static_cast<llvm::Argument*>(f_arg);
     }
 
-    llvm::BasicBlock *entry = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", f);
+    llvm::BasicBlock *entry = llvm::BasicBlock::Create(m_context, "entry", f);
     m_builder.SetInsertPoint(entry);
 
     llvm::Value *ret;
@@ -113,7 +112,7 @@ llvm::Value *ASTToIRVisitor::codegenOperation (Operator op, llvm::Value *lhs, ll
     case Operator::NEQ: v = m_builder.CreateICmpNE(lhs, rhs); break;
     }
 
-    v = m_builder.CreateIntCast(v, llvm::IntegerType::get(llvm::getGlobalContext(), 32), true);
+    v = m_builder.CreateIntCast(v, llvm::IntegerType::get(m_context, 32), true);
 
     return v;
 }
@@ -198,16 +197,16 @@ void ASTToIRVisitor::visit (const IfExpr &node)
     llvm::Value *cond = codegen(node.condition());
 
     m_builder.CreateICmpNE(cond,
-                           llvm::ConstantInt::get(llvm::IntegerType::get(llvm::getGlobalContext(),32), llvm::APInt(32, 0, true)),
+                           llvm::ConstantInt::get(llvm::IntegerType::get(m_context,32), llvm::APInt(32, 0, true)),
                          "ifcond");
 
     llvm::Function *fun = m_builder.GetInsertBlock()->getParent();
 
-    llvm::BasicBlock *then_block = llvm::BasicBlock::Create(llvm::getGlobalContext(), "then", fun);
-    llvm::BasicBlock *else_block = llvm::BasicBlock::Create(llvm::getGlobalContext(), "else");
-    llvm::BasicBlock *merge_block = llvm::BasicBlock::Create(llvm::getGlobalContext(), "ifcont");
+    llvm::BasicBlock *then_block = llvm::BasicBlock::Create(m_context, "then", fun);
+    llvm::BasicBlock *else_block = llvm::BasicBlock::Create(m_context, "else");
+    llvm::BasicBlock *merge_block = llvm::BasicBlock::Create(m_context, "ifcont");
 
-    llvm::Value *br_cond = m_builder.CreateIntCast(cond, llvm::IntegerType::get(llvm::getGlobalContext(), 1), false);
+    llvm::Value *br_cond = m_builder.CreateIntCast(cond, llvm::IntegerType::get(m_context, 1), false);
     m_builder.CreateCondBr(br_cond, then_block, else_block);
 
     m_builder.SetInsertPoint(then_block);
@@ -227,7 +226,7 @@ void ASTToIRVisitor::visit (const IfExpr &node)
 
     fun->getBasicBlockList().push_back(merge_block);
     m_builder.SetInsertPoint(merge_block);
-    llvm::PHINode *phi = m_builder.CreatePHI(llvm::Type::getInt32Ty(llvm::getGlobalContext()), 2,
+    llvm::PHINode *phi = m_builder.CreatePHI(llvm::Type::getInt32Ty(m_context), 2,
                                     "iftmp");
 
     phi->addIncoming(then_value, then_block);
@@ -238,7 +237,7 @@ void ASTToIRVisitor::visit (const IfExpr &node)
 
 void ASTToIRVisitor::visit(const IntExpr &node)
 {
-    m_value = llvm::ConstantInt::get(llvm::getGlobalContext(), llvm::APInt(32, node.value(), true));
+    m_value = llvm::ConstantInt::get(m_context, llvm::APInt(32, node.value(), true));
 }
 
 llvm::Value *ASTToIRVisitor::codegen (const ASTNode &node)

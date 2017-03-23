@@ -1,8 +1,10 @@
 #include <vector>
+#include <memory>
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
 #include <clang/Basic/DiagnosticOptions.h>
+#include <clang/Basic/VirtualFileSystem.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/Program.h>
@@ -19,7 +21,7 @@ using std::string;
 
 void Linker::link(string input_object, string output_file)
 {
-    std::string clang_path = llvm::sys::FindProgramByName("clang");
+    std::string clang_path = llvm::sys::findProgramByName("clang").get();
 
     std::vector<const char *> args;
     args.push_back(clang_path.c_str());
@@ -31,9 +33,9 @@ void Linker::link(string input_object, string output_file)
     IntrusiveRefCntPtr<DiagnosticIDs> diag_id(new DiagnosticIDs());
     DiagnosticsEngine diags(diag_id, diag_opts);
 
-    Driver driver(args[0], llvm::sys::getDefaultTargetTriple(), "a.out", diags);
+    Driver driver(args[0], llvm::sys::getDefaultTargetTriple(), diags);
 
-    OwningPtr<Compilation> compilation(driver.BuildCompilation(args));
+    std::unique_ptr<Compilation> compilation(driver.BuildCompilation(args));
 
     int res = 0;
     llvm::SmallVector<std::pair<int, const Command *>, 4> failing_commands;
@@ -48,7 +50,7 @@ void Linker::link(string input_object, string output_file)
             res = command_res;
 
         if (command_res < 0 || command_res == 70) {
-            driver.generateCompilationDiagnostics(*compilation, failing_command);
+            driver.generateCompilationDiagnostics(*compilation, *failing_command);
             break;
         }
     }

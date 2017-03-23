@@ -48,13 +48,12 @@ set (LIBS
     LLVMMCParser
     LLVMX86Info
     LLVMX86Utils
-    LLVMJIT
+    LLVMMCJIT
     LLVMExecutionEngine
     LLVMCodeGen
     LLVMScalarOpts
     LLVMInstCombine
     LLVMTransformUtils
-    LLVMipa
     LLVMAnalysis
     LLVMTarget
     LLVMMC
