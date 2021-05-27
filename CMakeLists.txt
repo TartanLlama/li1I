@@ -47,10 +47,6 @@ set (LIBS
     LLVMMC
     LLVMCore
     LLVMSupport
-    Boost::boost
-    pthread
-    dl
-    curses
 )
 
 target_link_libraries (li1I ${LIBS})
