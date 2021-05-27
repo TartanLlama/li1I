@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 2.8.7)
 project (li1I)
 
 find_package(LLVM)
+find_package(Boost)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DEFINITIONS}")
@@ -15,7 +16,7 @@ file(GLOB_RECURSE li1I_sources "src/*.cpp")
 
 include_directories("include" "${CMAKE_CURRENT_BINARY_DIR}/include")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -frtti -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -frtti -g")
 
 add_subdirectory(include)
 
@@ -23,18 +24,6 @@ add_executable(li1I ${li1I_sources})
 add_dependencies(li1I DriverOptions)
 
 set (LIBS
-    clangFrontend
-    clangDriver
-    clangCodeGen
-    clangSema
-    clangAnalysis
-    clangAST
-    clangEdit
-    clangParse
-    clangLex
-    clangBasic
-    clangSerialization
-    clangTooling
     LLVMOption
     LLVMInterpreter
     LLVMX86Disassembler
@@ -43,7 +32,6 @@ set (LIBS
     LLVMSelectionDAG
     LLVMObject
     LLVMAsmPrinter
-    LLVMX86AsmPrinter
     LLVMX86AsmParser
     LLVMMCParser
     LLVMX86Info
@@ -59,6 +47,7 @@ set (LIBS
     LLVMMC
     LLVMCore
     LLVMSupport
+    Boost::boost
     pthread
     dl
     curses

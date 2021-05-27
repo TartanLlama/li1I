@@ -1,6 +1,6 @@
 #include <string>
 
-namespace linker
+namespace li1I
 {
     class Linker
     {

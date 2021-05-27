@@ -4,9 +4,8 @@
 #include <string>
 #include <memory>
 
-#include "boost/iterator/indirect_iterator.hpp"
-
 #include "visitor.hpp"
+#include "indirect_iterator.hpp"
 
 namespace li1I
 {
@@ -28,7 +27,7 @@ class Expr;
 
     template <typename T>
     using UniqueIterator = 
-        boost::indirect_iterator<typename std::vector<std::unique_ptr<T> >::const_iterator>;
+        li1I::indirect_iterator<typename std::vector<std::unique_ptr<T> >::const_iterator>;
     
 
     using ASTNodeVisitor = Visitor <Program,

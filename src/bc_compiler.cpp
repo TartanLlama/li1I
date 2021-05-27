@@ -1,6 +1,6 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/CodeGen/CommandFlags.h"
+// #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
 #include "llvm/IR/DataLayout.h"
@@ -28,14 +28,14 @@
 using namespace llvm;
 using options::opts;
 
-tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
+ToolOutputFile *BCCompiler::getOutputStream(const std::string &target_name,
                                               Triple::OSType os_type,
                                               const std::string &program_name,
                                               std::string &output_path)
 {
     std::string suffix;
     switch (m_file_type) {
-    case TargetMachine::CGFT_AssemblyFile:
+    case CGFT_AssemblyFile:
         if (target_name[0] == 'c') {
             if (target_name[1] == 0)
                 suffix = "cbe.c";
@@ -46,13 +46,13 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
         } else
             suffix = "s";
         break;
-    case TargetMachine::CGFT_ObjectFile:
+    case CGFT_ObjectFile:
         if (os_type == Triple::Win32)
             suffix = "obj";
         else
             suffix = "o";
         break;
-    case TargetMachine::CGFT_Null:
+    case CGFT_Null:
         suffix = "null";
         break;
     }
@@ -60,15 +60,15 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
     // Decide if we need "binary" output.
     bool binary = false;
     switch (m_file_type) {
-    case TargetMachine::CGFT_AssemblyFile:
+    case CGFT_AssemblyFile:
         break;
-    case TargetMachine::CGFT_ObjectFile:
-    case TargetMachine::CGFT_Null:
+    case CGFT_ObjectFile:
+    case CGFT_Null:
         binary = true;
         break;
     }
 
-    tool_output_file *out_fd;
+    ToolOutputFile *out_fd;
     if(opts->hasArg(options::OPT_c))
     {
         std::error_code error;
@@ -77,7 +77,7 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
             open_flags |= sys::fs::F_None;
         std::string output_file = program_name + '.' + suffix;
         output_file = opts->getLastArgValue(options::OPT_o, output_file);
-        out_fd = new tool_output_file(output_file.c_str(), error,
+        out_fd = new ToolOutputFile(output_file.c_str(), error,
                                       open_flags);
         output_path = std::move(output_file);
         
@@ -91,7 +91,7 @@ tool_output_file *BCCompiler::getOutputStream(const std::string &target_name,
         int fd;
         SmallString<128> result_path;
         llvm::sys::fs::createTemporaryFile (program_name, suffix, fd, result_path);
-        out_fd = new tool_output_file(result_path.c_str(), fd);
+        out_fd = new ToolOutputFile(result_path.c_str(), fd);
         output_path = std::move(result_path.c_str());
 
     }
@@ -107,33 +107,26 @@ std::string BCCompiler::compile(Module *module)
 
     // Get the target specific parser.
     std::string error;
-    const Target *target = TargetRegistry::lookupTarget(MArch, triple,
+    const Target *target = TargetRegistry::lookupTarget(target_triple,
                                                         error);
     if (!target)
     {
         throw BCCompileError(error);
     }
 
-    // Package up features to be passed to target/subtarget
-    std::string FeaturesStr;
-    if (MAttrs.size()) {
-        SubtargetFeatures Features;
-        for (unsigned i = 0; i != MAttrs.size(); ++i)
-            Features.AddFeature(MAttrs[i]);
-        FeaturesStr = Features.getString();
-    }
 
     TargetOptions options;
+    auto RM = Optional<CodeModel::Model>();
     std::unique_ptr<TargetMachine>
         target_machine(target->createTargetMachine(triple.getTriple(),
-                                                  MCPU, FeaturesStr, options,
-                                                  NoneType{}, CodeModel::Default, m_opt_level));
+                                                  "generic", "", options,
+                                                  NoneType{}, RM, m_opt_level));
     assert(target_machine.get() && "Could not allocate target machine!");
 
 
     // Figure out where we are going to send the output.
     std::string output_path;
-    std::unique_ptr<tool_output_file> out
+    std::unique_ptr<ToolOutputFile> out
         (getOutputStream(target->getName(), triple.getOS(), module->getModuleIdentifier(), output_path));
     if (!out)
     {
@@ -145,7 +138,7 @@ std::string BCCompiler::compile(Module *module)
 
     {
         // Ask the target to add backend passes as necessary.
-        if (target_machine->addPassesToEmitFile(pm, out->os(), m_file_type))
+        if (target_machine->addPassesToEmitFile(pm, out->os(), nullptr, m_file_type))
         {
             throw BCCompileError("Target does not support generation of this file type");
         }

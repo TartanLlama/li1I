@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     
         if (opts->hasArg(options::OPT_emit_llvm))
         {
-            module->dump();
+            module->print(llvm::errs(), nullptr);
         }
 
         if (opts->hasArg(options::OPT_e))
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
         }
 
         BCCompiler bc_compiler (llvm::CodeGenOpt::Level::None,
-                                llvm::TargetMachine::CodeGenFileType::CGFT_ObjectFile);
+                                llvm::CodeGenFileType::CGFT_ObjectFile);
         object_path = bc_compiler.compile(module.get());
         object_file_is_temp = true;
         }
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     
     if (!opts->hasArg(options::OPT_c))
     {
-        linker::Linker linker;
+        li1I::Linker linker;
         linker.link(object_path, opts->getLastArgValue(options::OPT_o, "a.out"));
         if (object_file_is_temp)
         {
