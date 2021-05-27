@@ -1,5 +1,9 @@
 # `li1I`
 
+> *why*
+> 
+> — everyone whom I have shown this to
+
 `li1I` is a domain-specific programming language for integer calculations. It supports recursive functions, conditional execution, and expresses arithmetic in [Reverse Polish notation](https://en.wikipedia.org/wiki/Reverse_Polish_notation). 
 
 The only valid characters in an `li1I` program are `l`, `i`, `1`, `I` and whitespace. There is no syntax for comments. Comments are not necessary in a language of such clarity.
@@ -17,6 +21,8 @@ l1iI
 
 l1Ii
 ```
+
+Beautiful.
 
 ### Literals and Identifiers
 
@@ -41,8 +47,8 @@ A statement is an expression followed by the token `l1ii`.
 An expression can be:
 
 - The name of a variable, which evaluates to its value.
-- A variable declaration, spelled `liI1 &gt;variable identifier&lt; lIi1 &gt;expression&lt;`, which evaluates to the value of the initialiser.
-- A function call, spelled `&gt;function identifier&lt; li1l &gt;expression&lt;* lil1`, which evaluates to the result of the function call.
+- A variable declaration, spelled `liI1 <variable identifier> lIi1 <expression>`, which evaluates to the value of the initialiser.
+- A function call, spelled `<function identifier> li1l <expression>* lil1`, which evaluates to the result of the function call.
 - An arithmetic or logical expression (see below).
 - A conditional expression (see below).
 
@@ -71,12 +77,12 @@ The following logical operations and their spelling in `li1I` are:
 A conditional expression is of the form:
 
 ```
-l1i1 li1l &gt;arithmetic or logical expression&lt; lil1
+l1i1 li1l <arithmetic or logical expression> lil1
 l1iI
-        &gt;then statements&lt;*
+        <then statements>*
 l1Ii 
 l1il l1iI
-        &gt;else statements&lt;*
+        <else statements>*
 l1Ii
 ```
 
@@ -109,12 +115,12 @@ The compiler supplied in this repository is also called `li1I` and is based on L
 ### Usage
 
 ```
-l1iI &gt;input file&lt; [&gt;flags&lt;]
+l1iI <input file> [<flags>]
 ```
 
 Flags:
 
-- `-o &gt;file&lt;`: Write output to `file`
+- `-o <file>`: Write output to `file`
 - `-e`: Execute the program immediately
 - `-c`: Compile to an object file
 - `--emit-ast`: Emit l1iI AST files for source inputs
