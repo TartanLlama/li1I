@@ -2,7 +2,6 @@ cmake_minimum_required (VERSION 2.8.7)
 project (li1I)
 
 find_package(LLVM)
-find_package(Boost)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DEFINITIONS}")
@@ -47,7 +46,6 @@ set (LIBS
     LLVMMC
     LLVMCore
     LLVMSupport
-    Boost::boost
     pthread
     dl
     curses
