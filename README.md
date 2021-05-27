@@ -134,3 +134,7 @@ l1iI factorial.li #outputs factorial.o
 gcc factorial.o -o factorial
 ```
 
+### Building
+
+The build system is written in CMake. If you have the development libraries for LLVM 10 available you should be able to `mkdir build && cd build && cmake .. && make -j` or whatever. I tested it on Ubuntu version somethingorother, it might work on Windows, idk.
+
